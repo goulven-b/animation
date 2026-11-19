@@ -1,357 +1,403 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Système Va-et-Vient — Lampe Interactive</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Simulation interactive — Va-et-vient</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Inter:wght@300;400&display=swap');
-
   :root {
-    --bg-dark: #0f0c29;
-    --track: #888;
-    --lamp-body: linear-gradient(145deg, #2a2a35, #4a4a55);
-    --bulb-glow: #ffcc00;
+    color-scheme: dark;
+    --bg: #0b1120;
+    --panel: #141e32;
+    --text: #e8eefb;
+    --muted: #a6b4cf;
+    --phase: #ffad42;
+    --neutral: #56c9ff;
+    --inactive: #475569;
   }
 
-  * { box-sizing: border-box; margin: 0; padding: 0; }
+  * { box-sizing: border-box; }
 
   body {
-    background: radial-gradient(circle at 50% 0%, #302b63 0%, #0f0c29 100%);
-    color: #eee;
-    font-family: 'Inter', system-ui, sans-serif;
+    margin: 0;
+    padding: 32px 16px;
+    font-family: system-ui, sans-serif;
+    background: radial-gradient(ellipse at top, #1c2c4c, var(--bg) 70%);
+    color: var(--text);
     min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+  }
+
+  main { max-width: 1000px; margin: auto; }
+  h1 { margin: 0 0 10px; font-size: clamp(25px, 4vw, 38px); }
+  p { color: var(--muted); line-height: 1.6; }
+
+  .panel {
+    margin-top: 24px;
+    padding: 22px;
+    border: 1px solid #ffffff15;
+    border-radius: 22px;
+    background: #141e32e8;
+    box-shadow: 0 20px 60px #0003;
+  }
+
+  .status {
+    display: inline-flex;
     align-items: center;
-    padding: 2rem 1rem;
+    gap: 10px;
+    padding: 9px 15px;
+    border-radius: 30px;
+    background: #0003;
+    font-weight: 700;
   }
 
-  h1 {
-    font-family: 'Orbitron', sans-serif;
-    font-size: clamp(1.5rem, 4vw, 2.2rem);
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    color: #fff;
-    text-shadow: 0 0 20px rgba(255,200,0,0.4);
-    margin-bottom: 0.5rem;
-  }
-
-  .subtitle {
-    color: #aaa;
-    font-weight: 300;
-    margin-bottom: 2rem;
-    font-size: 0.95rem;
-  }
-
-  /* ===== SCÈNE ===== */
-  .scene {
-    position: relative;
-    width: 100%;
-    max-width: 900px;
-    height: 480px;
-    background: linear-gradient(180deg, #1a1633 0%, #111028 60%, #0b0816 100%);
-    border: 1px solid rgba(255,255,255,0.05);
-    border-radius: 16px;
-    overflow: hidden;
-    box-shadow:
-      0 25px 60px rgba(0,0,0,0.6),
-      inset 0 0 80px rgba(255,200,0,0.05);
-    margin-bottom: 2rem;
-  }
-
-  /* Grille de fond (industriel) */
-  .floor-grid {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 35%;
-    background-image:
-      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
-    background-size: 60px 60px;
-    pointer-events: none;
-    mask-image: linear-gradient(to top, rgba(0,0,0,1) 40%, transparent 100%);
-  }
-
-  /* Plancher */
-  .floor {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    height: 30%;
-    background: linear-gradient(to top, #080814 0%, #12102a 100%);
-    border-top: 1px solid rgba(255,255,255,0.08);
-  }
-
-  /* Rail / Track */
-  .track {
-    position: absolute;
-    top: 40px;
-    left: 10%;
-    width: 80%;
-    height: 8px;
-    background: linear-gradient(90deg, #555, #aaa, #555);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.2);
-  }
-
-  .track-end {
-    position: absolute;
-    top: 36px;
-    width: 4px;
-    height: 16px;
-    background: #777;
-    border-radius: 2px;
-    box-shadow: 0 0 6px rgba(255,255,255,0.2);
-  }
-  .track-end.left  { left: calc(10% - 2px); }
-  .track-end.right { left: calc(90% - 2px); }
-
-  /* ===== LAMPE ===== */
-  .lamp-carriage {
-    position: absolute;
-    top: 40px;
-    left: 50%;
-    width: 70px;
-    height: 110px;
-    /* Transform initial centré + offset animé via JS */
-    transform: translate(calc(-50% + 0px), 0);
-    will-change: transform;
-  }
-
-  .lamp-body {
-    width: 100%;
-    height: 60px;
-    background: var(--lamp-body);
-    border-radius: 12px;
-    box-shadow:
-      0 10px 25px rgba(0,0,0,0.6),
-      inset 0 2px 4px rgba(255,255,255,0.2),
-      0 0 20px rgba(255,200,0,0.15);
-    position: relative;
-    z-index: 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  /* Ampoule */
-  .bulb {
-    width: 34px;
-    height: 34px;
-    background: radial-gradient(circle at 30% 30%, #fff, #ffcc00 60%, #ff9900 100%);
+  .dot {
+    width: 11px;
+    height: 11px;
     border-radius: 50%;
-    box-shadow:
-      0 0 10px #fff,
-      0 0 25px var(--bulb-glow),
-      0 0 50px rgba(255,204,0,0.4);
-    z-index: 3;
+    background: #64748b;
   }
 
-  /* Faisceau lumineux */
-  .light-beam {
-    position: absolute;
-    top: 55px;
-    left: 50%;
-    width: 140px;
-    height: 260px;
-    background: linear-gradient(to bottom, rgba(255,230,150,0.7), rgba(255,230,150,0));
-    clip-path: polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%);
-    transform: translateX(-50%) rotate(-8deg);
-    filter: blur(3px);
+  .status.on { color: #ffd58b; }
+  .status.on .dot {
+    background: #ffc35a;
+    box-shadow: 0 0 15px #ffbd47;
+  }
+
+  .diagram { overflow-x: auto; }
+  svg { display: block; width: 100%; min-width: 610px; }
+
+  svg text {
+    fill: var(--muted);
+    font-size: 15px;
+    font-family: inherit;
+  }
+
+  svg .title { fill: var(--text); font-size: 17px; font-weight: 700; }
+
+  .wire {
+    fill: none;
+    stroke: var(--inactive);
+    stroke-width: 6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    transition: stroke .2s;
+  }
+
+  .wire.live { stroke: var(--phase); }
+  .wire.neutral { stroke: var(--neutral); }
+
+  .current {
+    fill: none;
+    stroke: #fff5cf;
+    stroke-width: 2;
+    stroke-dasharray: 5 16;
+    stroke-linecap: round;
     pointer-events: none;
-    z-index: 1;
+    opacity: 0;
   }
 
-  /* Zone éclairée au sol */
-  .floor-highlight {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    width: 320px;
-    height: 140px;
-    background: radial-gradient(ellipse at center, rgba(255,220,100,0.55) 0%, rgba(255,220,100,0.1) 50%, transparent 70%);
-    transform: translate(calc(-50% + 0px), 0);
-    pointer-events: none;
-    z-index: 0;
-    filter: blur(8px);
+  .current.running {
+    opacity: .95;
+    animation: flow .8s linear infinite;
   }
 
-  /* ===== CONTRÔLES ===== */
+  @keyframes flow {
+    to { stroke-dashoffset: -42; }
+  }
+
+  .contact {
+    fill: #dbeafe;
+    stroke: #141e32;
+    stroke-width: 3;
+  }
+
+  .switch { cursor: pointer; outline: none; }
+
+  .switch-box {
+    fill: #ffffff03;
+    stroke: #ffffff14;
+    stroke-width: 2;
+    transition: fill .2s, stroke .2s;
+  }
+
+  .switch:hover .switch-box,
+  .switch:focus .switch-box {
+    fill: #ffffff09;
+    stroke: #8aaaf0;
+  }
+
+  #bulb {
+    fill: #26334b;
+    stroke: #8190aa;
+    stroke-width: 3;
+    transition: fill .2s, stroke .2s;
+  }
+
+  #bulb.on {
+    fill: #ffe49a;
+    stroke: #fff3ce;
+    filter: url(#glow);
+  }
+
   .controls {
     display: flex;
-    flex-wrap: wrap;
-    gap: 1.5rem;
     justify-content: center;
-    align-items: center;
-    background: rgba(255,255,255,0.03);
-    padding: 1.2rem 2rem;
-    border-radius: 12px;
-    border: 1px solid rgba(255,255,255,0.08);
-    backdrop-filter: blur(8px);
-    max-width: 900px;
-    width: 100%;
-  }
-
-  .control-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    min-width: 160px;
-  }
-
-  label {
-    font-size: 0.85rem;
-    color: #ccc;
-    letter-spacing: 0.5px;
-  }
-
-  input[type="range"] {
-    -webkit-appearance: none;
-    width: 100%;
-    height: 6px;
-    background: #333;
-    border-radius: 3px;
-    outline: none;
-  }
-
-  input[type="range"]::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 18px;
-    height: 18px;
-    border-radius: 50%;
-    background: linear-gradient(145deg, #ffcc00, #ff9900);
-    cursor: pointer;
-    box-shadow: 0 0 10px rgba(255,200,0,0.5);
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   button {
-    padding: 0.6rem 1.6rem;
-    border: none;
-    border-radius: 8px;
-    background: linear-gradient(145deg, #ffcc00, #ff9900);
-    color: #111;
-    font-weight: 700;
-    font-family: inherit;
+    padding: 12px 18px;
+    border: 1px solid #ffffff25;
+    border-radius: 12px;
+    background: #233654;
+    color: white;
+    font: inherit;
+    font-weight: 600;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(255,200,0,0.35);
-    transition: transform 0.1s ease, box-shadow 0.2s;
+    transition: background .2s, transform .15s;
   }
 
-  button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(255,200,0,0.5);
+  button:hover { background: #304b73; }
+  button:active { transform: translateY(2px); }
+  button:focus-visible { outline: 3px solid #80baff; outline-offset: 3px; }
+  button[aria-pressed="true"] { background: #365d88; }
+
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 20px;
+    margin: 24px 0 10px;
+    font-size: 14px;
+    color: var(--muted);
   }
 
-  button:active { transform: translateY(0); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .sample { width: 24px; height: 4px; border-radius: 3px; }
 
-  .readout {
-    font-variant-numeric: tabular-nums;
-    font-family: 'Orbitron', sans-serif;
-    color: #ffcc00;
-    font-size: 1.1rem;
+  .explanation {
+    margin-top: 24px;
+    padding: 16px 20px;
+    border-left: 3px solid #799de3;
+    background: #ffffff05;
+    border-radius: 0 12px 12px 0;
   }
 
-  @media (max-width: 600px) {
-    .controls { flex-direction: column; }
-    .scene { height: 380px; }
-  }
+  .explanation p { margin: 5px 0; }
+  .notice { font-size: 12px; margin-top: 20px; }
 </style>
 </head>
 <body>
+<main>
+  <h1>💡 Le circuit va-et-vient</h1>
+  <p>
+    Une lampe, deux points de commande.
+    Clique sur les interrupteurs pour découvrir le trajet du courant.
+  </p>
 
-  <h1>Système Va-et-Vient</h1>
-  <p class="subtitle">Lampe mobile sur rail — mouvement sinusoïdal interactif</p>
-
-  <div class="scene" aria-label="Simulation de lampe en mouvement">
-    <div class="floor-grid" aria-hidden="true"></div>
-    <div class="floor" aria-hidden="true"></div>
-
-    <!-- Rail -->
-    <div class="track" aria-hidden="true"></div>
-    <div class="track-end left" aria-hidden="true"></div>
-    <div class="track-end right" aria-hidden="true"></div>
-
-    <!-- Lampe -->
-    <div class="lamp-carriage" id="lamp" aria-label="Lampe mobile">
-      <div class="lamp-body" aria-hidden="true">
-        <div class="bulb" aria-hidden="true"></div>
-      </div>
-      <div class="light-beam" aria-hidden="true"></div>
+  <section class="panel" aria-label="Simulation du va-et-vient">
+    <div id="status" class="status on" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="statusText">Lampe allumée — circuit fermé</span>
     </div>
 
-    <!-- Tache de lumière au sol -->
-    <div class="floor-highlight" id="highlight" aria-hidden="true"></div>
-  </div>
+    <div class="diagram">
+      <svg viewBox="0 0 920 370"
+           role="group" aria-label="Schéma interactif du circuit va-et-vient">
+        <defs>
+          <filter id="glow" x="-150%" y="-150%" width="400%" height="400%">
+            <feGaussianBlur stdDeviation="12" result="blur"/>
+            <feMerge>
+              <feMergeNode in="blur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
 
-  <div class="controls">
-    <button onclick="toggleAnimation()" aria-label="Pause ou lecture" id="btnToggle">Pause</button>
+        <text x="45" y="167">Phase L</text>
+        <text x="45" y="338">Neutre N</text>
+        <text x="440" y="105" text-anchor="middle">Navette 1</text>
+        <text x="440" y="280" text-anchor="middle">Navette 2</text>
+        <text x="790" y="120" class="title" text-anchor="middle">Lampe</text>
 
-    <div class="control-group">
-      <label for="speedRange">Vitesse <span id="valSpeed" class="readout">3</span></label>
-      <input type="range" id="speedRange" min="1" max="10" step="1" value="3" oninput="updateSpeed(this.value)" aria-label="Vitesse du va-et-vient" />
+        <!-- Conducteurs fixes -->
+        <path id="phase" class="wire live" d="M70 190 H220"/>
+        <path id="traveler0" class="wire" d="M300 130 H580"/>
+        <path id="traveler1" class="wire" d="M300 250 H580"/>
+        <path id="return" class="wire" d="M660 190 H764"/>
+        <path class="wire neutral" d="M816 190 H860 V310 H70"/>
+
+        <!-- Chaque commutateur relie son commun à une navette -->
+        <g id="switch1" class="switch" role="button" tabindex="0"
+           aria-label="Actionner l’interrupteur 1">
+          <rect class="switch-box" x="190" y="95"
+                width="140" height="195" rx="18"/>
+          <text x="260" y="65" class="title" text-anchor="middle">
+            Interrupteur 1
+          </text>
+          <path id="blade1" class="wire" d="M220 190 L300 130"/>
+          <circle class="contact" cx="220" cy="190" r="7"/>
+          <circle class="contact" cx="300" cy="130" r="7"/>
+          <circle class="contact" cx="300" cy="250" r="7"/>
+        </g>
+
+        <g id="switch2" class="switch" role="button" tabindex="0"
+           aria-label="Actionner l’interrupteur 2">
+          <rect class="switch-box" x="550" y="95"
+                width="140" height="195" rx="18"/>
+          <text x="620" y="65" class="title" text-anchor="middle">
+            Interrupteur 2
+          </text>
+          <path id="blade2" class="wire" d="M580 130 L660 190"/>
+          <circle class="contact" cx="660" cy="190" r="7"/>
+          <circle class="contact" cx="580" cy="130" r="7"/>
+          <circle class="contact" cx="580" cy="250" r="7"/>
+        </g>
+
+        <!-- Animation du trajet complet, visible seulement circuit fermé -->
+        <path id="current" class="current"/>
+
+        <!-- Symbole de lampe -->
+        <circle id="bulb" cx="790" cy="190" r="26"/>
+        <path d="M773 173 L807 207 M807 173 L773 207"
+              fill="none" stroke="#987a35" stroke-width="3"/>
+        <text id="lampLabel" x="790" y="250" text-anchor="middle">
+          ALLUMÉE
+        </text>
+      </svg>
     </div>
 
-    <div class="control-group">
-      <label for="ampRange">Amplitude <span id="valAmp" class="readout">120</span> px</label>
-      <input type="range" id="ampRange" min="0" max="250" step="10" value="120" oninput="updateAmplitude(this.value)" aria-label="Amplitude du mouvement" />
+    <div class="controls">
+      <button id="button1">Basculer l’interrupteur 1</button>
+      <button id="button2">Basculer l’interrupteur 2</button>
+      <button id="demo" aria-pressed="false">▶ Démonstration</button>
     </div>
-  </div>
+
+    <div class="legend">
+      <span><i class="sample" style="background:var(--phase)"></i>Relié à la phase</span>
+      <span><i class="sample" style="background:var(--neutral)"></i>Neutre</span>
+      <span><i class="sample" style="background:var(--inactive)"></i>Non alimenté</span>
+    </div>
+
+    <div class="explanation">
+      <p id="explanation" aria-live="polite"></p>
+      <p>
+        Chaque interrupteur sélectionne l’une des deux <strong>navettes</strong>.
+        Dans ce schéma, la lampe s’allume lorsque les deux sélectionnent
+        la même navette.
+      </p>
+    </div>
+  </section>
+
+  <p class="notice">
+    Schéma pédagogique simplifié : les couleurs indiquent ici l’état électrique,
+    pas les couleurs réglementaires des fils. Les pointillés illustrent un trajet
+    conventionnel ; ils ne représentent pas le mouvement réel du courant alternatif.
+    Ce schéma n’est pas un guide de câblage sur secteur.
+  </p>
+</main>
 
 <script>
-  /* ===== ÉTAT ===== */
-  let running = true;
-  let time = 0;
-  let speedFactor = 3;   // 1 à 10
-  let amplitude = 120;   // px
+  const $ = id => document.getElementById(id);
 
-  const lamp = document.getElementById('lamp');
-  const highlight = document.getElementById('highlight');
-  const btn = document.getElementById('btnToggle');
-  const valSpeed = document.getElementById('valSpeed');
-  const valAmp = document.getElementById('valAmp');
+  // 0 = navette du haut ; 1 = navette du bas.
+  const positions = [0, 0];
+  let timer = null;
+  let demoStep = 0;
 
-  /* ===== CONTRÔLES ===== */
-  function updateSpeed(v) {
-    speedFactor = parseInt(v, 10);
-    valSpeed.textContent = v;
+  function render() {
+    const [a, b] = positions;
+    const on = a === b;
+    const yA = a === 0 ? 130 : 250;
+    const yB = b === 0 ? 130 : 250;
+
+    $("blade1").setAttribute("d", `M220 190 L300 ${yA}`);
+    $("blade2").setAttribute("d", `M580 ${yB} L660 190`);
+
+    $("blade1").classList.add("live");
+    $("traveler0").classList.toggle("live", a === 0);
+    $("traveler1").classList.toggle("live", a === 1);
+    $("blade2").classList.toggle("live", on);
+    $("return").classList.toggle("live", on);
+
+    $("bulb").classList.toggle("on", on);
+    $("status").classList.toggle("on", on);
+    $("statusText").textContent = on
+      ? "Lampe allumée — circuit fermé"
+      : "Lampe éteinte — circuit ouvert";
+    $("lampLabel").textContent = on ? "ALLUMÉE" : "ÉTEINTE";
+
+    $("current").setAttribute(
+      "d",
+      `M70 190 H220 L300 ${yA} H580 L660 190 H764
+       M816 190 H860 V310 H70`
+    );
+    $("current").classList.toggle("running", on);
+
+    $("explanation").textContent = on
+      ? `Les deux interrupteurs sélectionnent la navette ${a + 1} :
+         le trajet phase → lampe → neutre est continu.`
+      : `L’interrupteur 1 sélectionne la navette ${a + 1},
+         mais l’interrupteur 2 sélectionne la navette ${b + 1} :
+         le circuit est interrompu.`;
+
+    positions.forEach((position, i) => {
+      const label = `Interrupteur ${i + 1}, navette ${position + 1}.
+                     Activer pour basculer.`;
+      $(`switch${i + 1}`).setAttribute("aria-label", label);
+      $(`button${i + 1}`).setAttribute("aria-label", label);
+    });
   }
 
-  function updateAmplitude(v) {
-    amplitude = parseInt(v, 10);
-    valAmp.textContent = v;
+  function toggle(index) {
+    positions[index] = 1 - positions[index];
+    render();
   }
 
-  function toggleAnimation() {
-    running = !running;
-    btn.textContent = running ? 'Pause' : 'Lecture';
-    btn.setAttribute('aria-label', running ? 'Mettre en pause' : 'Lancer l\'animation');
+  function stopDemo() {
+    clearInterval(timer);
+    timer = null;
+    $("demo").textContent = "▶ Démonstration";
+    $("demo").setAttribute("aria-pressed", "false");
   }
 
-  /* ===== ANIMATION ===== */
-  function loop() {
-    if (running) {
-      // Incrémente le temps (fréquence dépend de speedFactor)
-      time += 0.05 * (speedFactor / 3);
+  function manualToggle(index) {
+    stopDemo();
+    toggle(index);
+  }
 
-      // Mouvement sinusoïdal horizontal autour du centre
-      const offset = Math.sin(time) * amplitude;
+  [0, 1].forEach(index => {
+    $(`button${index + 1}`).addEventListener("click", () => {
+      manualToggle(index);
+    });
 
-      // Mise à jour des éléments (translate calculé depuis le centre 50%)
-      const transform = `translate(calc(-50% + ${offset}px), 0)`;
-      lamp.style.transform = transform;
-      highlight.style.transform = transform;
+    const element = $(`switch${index + 1}`);
+    element.addEventListener("click", () => manualToggle(index));
+    element.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        if (!event.repeat) manualToggle(index);
+      }
+    });
+  });
+
+  $("demo").addEventListener("click", () => {
+    if (timer !== null) {
+      stopDemo();
+      return;
     }
 
-    requestAnimationFrame(loop);
-  }
+    $("demo").textContent = "⏸ Arrêter la démonstration";
+    $("demo").setAttribute("aria-pressed", "true");
 
-  // Démarrage
-  loop();
+    timer = setInterval(() => {
+      toggle(demoStep % 2);
+      demoStep++;
+    }, 1500);
+  });
+
+  render();
 </script>
-
 </body>
 </html>
