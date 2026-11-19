@@ -1,11 +1,357 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=<device-width>, initial-scale=1.0">
-    <title>Document</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Système Va-et-Vient — Lampe Interactive</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500&family=Inter:wght@300;400&display=swap');
+
+  :root {
+    --bg-dark: #0f0c29;
+    --track: #888;
+    --lamp-body: linear-gradient(145deg, #2a2a35, #4a4a55);
+    --bulb-glow: #ffcc00;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: radial-gradient(circle at 50% 0%, #302b63 0%, #0f0c29 100%);
+    color: #eee;
+    font-family: 'Inter', system-ui, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  h1 {
+    font-family: 'Orbitron', sans-serif;
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 0 20px rgba(255,200,0,0.4);
+    margin-bottom: 0.5rem;
+  }
+
+  .subtitle {
+    color: #aaa;
+    font-weight: 300;
+    margin-bottom: 2rem;
+    font-size: 0.95rem;
+  }
+
+  /* ===== SCÈNE ===== */
+  .scene {
+    position: relative;
+    width: 100%;
+    max-width: 900px;
+    height: 480px;
+    background: linear-gradient(180deg, #1a1633 0%, #111028 60%, #0b0816 100%);
+    border: 1px solid rgba(255,255,255,0.05);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow:
+      0 25px 60px rgba(0,0,0,0.6),
+      inset 0 0 80px rgba(255,200,0,0.05);
+    margin-bottom: 2rem;
+  }
+
+  /* Grille de fond (industriel) */
+  .floor-grid {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 35%;
+    background-image:
+      linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    mask-image: linear-gradient(to top, rgba(0,0,0,1) 40%, transparent 100%);
+  }
+
+  /* Plancher */
+  .floor {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 30%;
+    background: linear-gradient(to top, #080814 0%, #12102a 100%);
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* Rail / Track */
+  .track {
+    position: absolute;
+    top: 40px;
+    left: 10%;
+    width: 80%;
+    height: 8px;
+    background: linear-gradient(90deg, #555, #aaa, #555);
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.6), inset 0 1px 2px rgba(255,255,255,0.2);
+  }
+
+  .track-end {
+    position: absolute;
+    top: 36px;
+    width: 4px;
+    height: 16px;
+    background: #777;
+    border-radius: 2px;
+    box-shadow: 0 0 6px rgba(255,255,255,0.2);
+  }
+  .track-end.left  { left: calc(10% - 2px); }
+  .track-end.right { left: calc(90% - 2px); }
+
+  /* ===== LAMPE ===== */
+  .lamp-carriage {
+    position: absolute;
+    top: 40px;
+    left: 50%;
+    width: 70px;
+    height: 110px;
+    /* Transform initial centré + offset animé via JS */
+    transform: translate(calc(-50% + 0px), 0);
+    will-change: transform;
+  }
+
+  .lamp-body {
+    width: 100%;
+    height: 60px;
+    background: var(--lamp-body);
+    border-radius: 12px;
+    box-shadow:
+      0 10px 25px rgba(0,0,0,0.6),
+      inset 0 2px 4px rgba(255,255,255,0.2),
+      0 0 20px rgba(255,200,0,0.15);
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Ampoule */
+  .bulb {
+    width: 34px;
+    height: 34px;
+    background: radial-gradient(circle at 30% 30%, #fff, #ffcc00 60%, #ff9900 100%);
+    border-radius: 50%;
+    box-shadow:
+      0 0 10px #fff,
+      0 0 25px var(--bulb-glow),
+      0 0 50px rgba(255,204,0,0.4);
+    z-index: 3;
+  }
+
+  /* Faisceau lumineux */
+  .light-beam {
+    position: absolute;
+    top: 55px;
+    left: 50%;
+    width: 140px;
+    height: 260px;
+    background: linear-gradient(to bottom, rgba(255,230,150,0.7), rgba(255,230,150,0));
+    clip-path: polygon(15% 0%, 85% 0%, 100% 100%, 0% 100%);
+    transform: translateX(-50%) rotate(-8deg);
+    filter: blur(3px);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Zone éclairée au sol */
+  .floor-highlight {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    width: 320px;
+    height: 140px;
+    background: radial-gradient(ellipse at center, rgba(255,220,100,0.55) 0%, rgba(255,220,100,0.1) 50%, transparent 70%);
+    transform: translate(calc(-50% + 0px), 0);
+    pointer-events: none;
+    z-index: 0;
+    filter: blur(8px);
+  }
+
+  /* ===== CONTRÔLES ===== */
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    justify-content: center;
+    align-items: center;
+    background: rgba(255,255,255,0.03);
+    padding: 1.2rem 2rem;
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.08);
+    backdrop-filter: blur(8px);
+    max-width: 900px;
+    width: 100%;
+  }
+
+  .control-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 160px;
+  }
+
+  label {
+    font-size: 0.85rem;
+    color: #ccc;
+    letter-spacing: 0.5px;
+  }
+
+  input[type="range"] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    background: #333;
+    border-radius: 3px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: linear-gradient(145deg, #ffcc00, #ff9900);
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(255,200,0,0.5);
+  }
+
+  button {
+    padding: 0.6rem 1.6rem;
+    border: none;
+    border-radius: 8px;
+    background: linear-gradient(145deg, #ffcc00, #ff9900);
+    color: #111;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(255,200,0,0.35);
+    transition: transform 0.1s ease, box-shadow 0.2s;
+  }
+
+  button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(255,200,0,0.5);
+  }
+
+  button:active { transform: translateY(0); }
+
+  .readout {
+    font-variant-numeric: tabular-nums;
+    font-family: 'Orbitron', sans-serif;
+    color: #ffcc00;
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 600px) {
+    .controls { flex-direction: column; }
+    .scene { height: 380px; }
+  }
+</style>
 </head>
 <body>
-    <h1>Bonjour</h1>
+
+  <h1>Système Va-et-Vient</h1>
+  <p class="subtitle">Lampe mobile sur rail — mouvement sinusoïdal interactif</p>
+
+  <div class="scene" aria-label="Simulation de lampe en mouvement">
+    <div class="floor-grid" aria-hidden="true"></div>
+    <div class="floor" aria-hidden="true"></div>
+
+    <!-- Rail -->
+    <div class="track" aria-hidden="true"></div>
+    <div class="track-end left" aria-hidden="true"></div>
+    <div class="track-end right" aria-hidden="true"></div>
+
+    <!-- Lampe -->
+    <div class="lamp-carriage" id="lamp" aria-label="Lampe mobile">
+      <div class="lamp-body" aria-hidden="true">
+        <div class="bulb" aria-hidden="true"></div>
+      </div>
+      <div class="light-beam" aria-hidden="true"></div>
+    </div>
+
+    <!-- Tache de lumière au sol -->
+    <div class="floor-highlight" id="highlight" aria-hidden="true"></div>
+  </div>
+
+  <div class="controls">
+    <button onclick="toggleAnimation()" aria-label="Pause ou lecture" id="btnToggle">Pause</button>
+
+    <div class="control-group">
+      <label for="speedRange">Vitesse <span id="valSpeed" class="readout">3</span></label>
+      <input type="range" id="speedRange" min="1" max="10" step="1" value="3" oninput="updateSpeed(this.value)" aria-label="Vitesse du va-et-vient" />
+    </div>
+
+    <div class="control-group">
+      <label for="ampRange">Amplitude <span id="valAmp" class="readout">120</span> px</label>
+      <input type="range" id="ampRange" min="0" max="250" step="10" value="120" oninput="updateAmplitude(this.value)" aria-label="Amplitude du mouvement" />
+    </div>
+  </div>
+
+<script>
+  /* ===== ÉTAT ===== */
+  let running = true;
+  let time = 0;
+  let speedFactor = 3;   // 1 à 10
+  let amplitude = 120;   // px
+
+  const lamp = document.getElementById('lamp');
+  const highlight = document.getElementById('highlight');
+  const btn = document.getElementById('btnToggle');
+  const valSpeed = document.getElementById('valSpeed');
+  const valAmp = document.getElementById('valAmp');
+
+  /* ===== CONTRÔLES ===== */
+  function updateSpeed(v) {
+    speedFactor = parseInt(v, 10);
+    valSpeed.textContent = v;
+  }
+
+  function updateAmplitude(v) {
+    amplitude = parseInt(v, 10);
+    valAmp.textContent = v;
+  }
+
+  function toggleAnimation() {
+    running = !running;
+    btn.textContent = running ? 'Pause' : 'Lecture';
+    btn.setAttribute('aria-label', running ? 'Mettre en pause' : 'Lancer l\'animation');
+  }
+
+  /* ===== ANIMATION ===== */
+  function loop() {
+    if (running) {
+      // Incrémente le temps (fréquence dépend de speedFactor)
+      time += 0.05 * (speedFactor / 3);
+
+      // Mouvement sinusoïdal horizontal autour du centre
+      const offset = Math.sin(time) * amplitude;
+
+      // Mise à jour des éléments (translate calculé depuis le centre 50%)
+      const transform = `translate(calc(-50% + ${offset}px), 0)`;
+      lamp.style.transform = transform;
+      highlight.style.transform = transform;
+    }
+
+    requestAnimationFrame(loop);
+  }
+
+  // Démarrage
+  loop();
+</script>
+
 </body>
 </html>
