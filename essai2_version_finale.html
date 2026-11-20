@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Schéma interactif — Va-et-vient</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --fond: #f4f7fb;
+      --carte: #fff;
+      --texte: #1d2939;
+      --secondaire: #667085;
+      --fil: #98a2b3;
+      --actif: #f59e0b;
+      --bleu: #2563eb;
+      --vert: #15803d;
+      --rouge: #b42318;
+      --bordure: #e4e7ec;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 32px 16px;
+      background: var(--fond);
+      color: var(--texte);
+      font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    main {
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 1.2rem;
+    }
+
+    .intro {
+      margin: 0 0 24px;
+      color: var(--secondaire);
+      line-height: 1.5;
+    }
+
+    .card {
+      margin: 16px 0;
+      padding: 20px;
+      border: 1px solid var(--bordure);
+      border-radius: 16px;
+      background: var(--carte);
+      box-shadow: 0 4px 14px rgb(16 24 40 / 5%);
+    }
+
+    .diagram-wrap {
+      overflow-x: auto;
+    }
+
+    #circuit {
+      display: block;
+      width: 100%;
+      min-width: 700px;
+      height: auto;
+    }
+
+    .wire {
+      fill: none;
+      stroke: var(--fil);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .wire.powered {
+      stroke: var(--actif);
+      stroke-width: 6;
+    }
+
+    .contact {
+      fill: #fff;
+      stroke: #667085;
+      stroke-width: 3;
+    }
+
+    .lever {
+      stroke: #344054;
+      stroke-width: 5;
+      stroke-linecap: round;
+    }
+
+    .lever.powered {
+      stroke: var(--actif);
+    }
+
+    .node { fill: #344054; }
+
+    .lamp {
+      fill: #f8fafc;
+      stroke: #667085;
+      stroke-width: 4;
+    }
+
+    .lamp.on {
+      fill: #fde68a;
+      stroke: var(--actif);
+      filter: drop-shadow(0 0 8px #f59e0b99);
+    }
+
+    .lamp-cross {
+      stroke: #667085;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    .svg-label {
+      fill: #344054;
+      font-size: 15px;
+      font-weight: 600;
+    }
+
+    .svg-small {
+      fill: #667085;
+      font-size: 12px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    button {
+      min-height: 44px;
+      padding: 10px 16px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--bleu);
+      color: #fff;
+      font: inherit;
+      font-weight: 650;
+      cursor: pointer;
+    }
+
+    button:hover { background: #1d4ed8; }
+
+    button.secondary {
+      border: 1px solid var(--bordure);
+      background: #fff;
+      color: var(--texte);
+    }
+
+    button.secondary:hover { background: #f2f4f7; }
+
+    button:focus-visible {
+      outline: 3px solid #93c5fd;
+      outline-offset: 2px;
+    }
+
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      padding: 9px 12px;
+      border-radius: 999px;
+      background: #f2f4f7;
+      font-weight: 700;
+    }
+
+    .status.on {
+      background: #ecfdf3;
+      color: var(--vert);
+    }
+
+    .status.off {
+      background: #fef3f2;
+      color: var(--rouge);
+    }
+
+    .note {
+      margin: 12px 0 0;
+      color: var(--secondaire);
+      font-size: .9rem;
+      line-height: 1.5;
+    }
+
+    .table-wrap { overflow-x: auto; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: center;
+    }
+
+    th, td {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--bordure);
+    }
+
+    th {
+      background: #f9fafb;
+      color: #475467;
+    }
+
+    tr.current {
+      background: #eff6ff;
+      font-weight: 700;
+      outline: 2px solid #93c5fd;
+      outline-offset: -2px;
+    }
+
+    .on-text { color: var(--vert); }
+    .off-text { color: var(--rouge); }
+
+    #chronogramme {
+      display: block;
+      width: 100%;
+      height: auto;
+      min-height: 150px;
+    }
+
+    .chart-label {
+      fill: #344054;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .chart-axis {
+      stroke: #d0d5dd;
+      stroke-width: 1;
+    }
+
+    .chart-line {
+      fill: none;
+      stroke-width: 3;
+      stroke-linejoin: round;
+      stroke-linecap: round;
+    }
+
+    .chart-a { stroke: #2563eb; }
+    .chart-b { stroke: #9333ea; }
+    .chart-l { stroke: #f59e0b; }
+
+    .chart-tick {
+      fill: #667085;
+      font-size: 11px;
+      text-anchor: middle;
+    }
+
+    .logic-wrap {
+      overflow-x: auto;
+      text-align: center;
+    }
+
+    #logigramme {
+      width: min(100%, 620px);
+      min-width: 420px;
+      height: auto;
+    }
+
+    .logic-box {
+      fill: #eff6ff;
+      stroke: #2563eb;
+      stroke-width: 2;
+    }
+
+    .logic-wire {
+      fill: none;
+      stroke: #667085;
+      stroke-width: 3;
+    }
+
+    @media (max-width: 600px) {
+      body { padding: 22px 12px; }
+      .card { padding: 16px; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Le circuit va-et-vient</h1>
+  <p class="intro">
+    Cliquez sur les interrupteurs pour changer leur état. La lampe s’allume
+    lorsque l’un est <strong>ouvert</strong> et l’autre <strong>fermé</strong>.
+  </p>
+
+  <section class="card" aria-labelledby="titre-schema">
+    <h2 id="titre-schema">Schéma interactif</h2>
+
+    <div class="diagram-wrap">
+      <svg id="circuit" viewBox="0 0 900 300" role="img"
+           aria-label="Schéma interactif d’un circuit va-et-vient">
+        <!-- Alimentation et fil de phase -->
+        <circle cx="55" cy="160" r="22" fill="#fff" stroke="#667085" stroke-width="3"/>
+        <text x="55" y="166" text-anchor="middle" class="svg-label">~</text>
+        <text x="55" y="207" text-anchor="middle" class="svg-small">Phase</text>
+        <path id="phaseWire" class="wire" d="M77 160 H170"/>
+
+        <!-- Commun et contacts du premier interrupteur -->
+        <circle class="node" cx="170" cy="160" r="6"/>
+        <path id="s1Lever" class="lever" d="M170 160 L260 105"/>
+        <circle class="contact" cx="260" cy="105" r="6"/>
+        <circle class="contact" cx="260" cy="215" r="6"/>
+        <text x="170" y="75" text-anchor="middle" class="svg-label">Interrupteur 1</text>
+        <text x="260" y="91" text-anchor="middle" class="svg-small">O</text>
+        <text x="260" y="238" text-anchor="middle" class="svg-small">F</text>
+
+        <!-- Fils navettes -->
+        <path id="railTop" class="wire" d="M260 105 H520"/>
+        <path id="railBottom" class="wire" d="M260 215 H520"/>
+        <text x="390" y="93" text-anchor="middle" class="svg-small">Navette 1</text>
+        <text x="390" y="238" text-anchor="middle" class="svg-small">Navette 2</text>
+
+        <!-- Deuxième interrupteur : repérage inversé pour obtenir la convention O/F -->
+        <circle class="contact" cx="520" cy="105" r="6"/>
+        <circle class="contact" cx="520" cy="215" r="6"/>
+        <path id="s2Lever" class="lever" d="M520 215 L610 160"/>
+        <circle class="node" cx="610" cy="160" r="6"/>
+        <text x="565" y="75" text-anchor="middle" class="svg-label">Interrupteur 2</text>
+        <text x="520" y="91" text-anchor="middle" class="svg-small">F</text>
+        <text x="520" y="238" text-anchor="middle" class="svg-small">O</text>
+
+        <!-- Lampe et retour neutre -->
+        <path id="outputWire" class="wire" d="M610 160 H710"/>
+        <circle id="lampBulb" class="lamp" cx="740" cy="160" r="30"/>
+        <path class="lamp-cross" d="M724 144 L756 176 M756 144 L724 176"/>
+        <path id="neutralWire" class="wire" d="M770 160 H845"/>
+        <text x="740" y="215" text-anchor="middle" class="svg-label">Lampe</text>
+        <text x="845" y="147" text-anchor="middle" class="svg-label">N</text>
+        <text x="845" y="185" text-anchor="middle" class="svg-small">Neutre</text>
+      </svg>
+    </div>
+
+    <div class="controls">
+      <button id="btnA" type="button" aria-pressed="false">
+        Interrupteur 1 : Ouvert
+      </button>
+      <button id="btnB" type="button" aria-pressed="false">
+        Interrupteur 2 : Ouvert
+      </button>
+      <button id="reset" class="secondary" type="button">Réinitialiser</button>
+    </div>
+
+    <div id="status" class="status off" aria-live="polite">
+      ● Lampe éteinte
+    </div>
+
+    <p class="note">
+      Dans ce schéma, O vaut 0 et F vaut 1. Le repérage du second commutateur
+      est inversé : avec cette convention, la lampe suit la fonction
+      <strong>A ⊕ B</strong> (OU exclusif).
+    </p>
+  </section>
+
+  <section class="card" aria-labelledby="titre-table">
+    <h2 id="titre-table">Table de vérité</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Interrupteur 1 (A)</th>
+            <th>Interrupteur 2 (B)</th>
+            <th>Lampe (A ⊕ B)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr data-a="0" data-b="0">
+            <td>Ouvert (0)</td><td>Ouvert (0)</td><td class="off-text">Éteinte (0)</td>
+          </tr>
+          <tr data-a="0" data-b="1">
+            <td>Ouvert (0)</td><td>Fermé (1)</td><td class="on-text">Allumée (1)</td>
+          </tr>
+          <tr data-a="1" data-b="0">
+            <td>Fermé (1)</td><td>Ouvert (0)</td><td class="on-text">Allumée (1)</td>
+          </tr>
+          <tr data-a="1" data-b="1">
+            <td>Fermé (1)</td><td>Fermé (1)</td><td class="off-text">Éteinte (0)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="titre-chrono">
+    <h2 id="titre-chrono">Chronogramme</h2>
+    <svg id="chronogramme" viewBox="0 0 780 170" role="img"
+         aria-label="Chronogramme des états des interrupteurs et de la lampe">
+    </svg>
+    <p class="note">Le chronogramme se construit au fil de vos clics. Les échantillons affichés sont les derniers états enregistrés.</p>
+  </section>
+
+  <section class="card" aria-labelledby="titre-logigramme">
+    <h2 id="titre-logigramme">Logigramme</h2>
+    <div class="logic-wrap">
+      <svg id="logigramme" viewBox="0 0 620 190" role="img"
+           aria-label="Logigramme de la fonction logique OU exclusif">
+        <text x="30" y="68" class="svg-label">A</text>
+        <text x="30" y="138" class="svg-label">B</text>
+        <path class="logic-wire" d="M55 62 H190 M55 132 H190"/>
+        <rect class="logic-box" x="190" y="35" width="180" height="125" rx="18"/>
+        <text x="280" y="88" text-anchor="middle" class="svg-label">OU exclusif</text>
+        <text x="280" y="119" text-anchor="middle" class="svg-label" style="font-size:24px">XOR ⊕</text>
+        <path class="logic-wire" d="M370 97 H520"/>
+        <text x="535" y="103" class="svg-label">Lampe L</text>
+        <text x="280" y="182" text-anchor="middle" class="svg-small">L = A ⊕ B</text>
+      </svg>
+    </div>
+  </section>
+</main>
+
+<script>
+  const etat = { a: 0, b: 0 };
+  let historique = [{ a: 0, b: 0, l: 0 }];
+
+  const btnA = document.getElementById("btnA");
+  const btnB = document.getElementById("btnB");
+  const status = document.getElementById("status");
+
+  function lampeAllumee() {
+    return etat.a !== etat.b;
+  }
+
+  function actualiser() {
+    const aOuvert = etat.a === 0;
+    const bFerme = etat.b === 1;
+    const allumee = lampeAllumee();
+
+    btnA.textContent = `Interrupteur 1 : ${aOuvert ? "Ouvert" : "Fermé"}`;
+    btnB.textContent = `Interrupteur 2 : ${etat.b === 0 ? "Ouvert" : "Fermé"}`;
+    btnA.setAttribute("aria-pressed", String(Boolean(etat.a)));
+    btnB.setAttribute("aria-pressed", String(Boolean(etat.b)));
+
+    // S1 choisit la navette du haut en position O, celle du bas en position F.
+    document.getElementById("s1Lever").setAttribute(
+      "d", aOuvert ? "M170 160 L260 105" : "M170 160 L260 215"
+    );
+
+    // Repérage inversé de S2 : O sélectionne le bas, F sélectionne le haut.
+    document.getElementById("s2Lever").setAttribute(
+      "d", bFerme ? "M520 105 L610 160" : "M520 215 L610 160"
+    );
+
+    const rails = [
+      "phaseWire", "s1Lever", "railTop", "railBottom",
+      "s2Lever", "outputWire", "neutralWire"
+    ];
+    rails.forEach(id => document.getElementById(id).classList.remove("powered"));
+
+    if (allumee) {
+      const railActif = aOuvert ? "railTop" : "railBottom";
+      ["phaseWire", "s1Lever", railActif, "s2Lever", "outputWire", "neutralWire"]
+        .forEach(id => document.getElementById(id).classList.add("powered"));
+    }
+
+    document.getElementById("lampBulb").classList.toggle("on", allumee);
+
+    status.textContent = allumee ? "● Lampe allumée" : "● Lampe éteinte";
+    status.className = `status ${allumee ? "on" : "off"}`;
+
+    document.querySelectorAll("tbody tr").forEach(row => {
+      const active = Number(row.dataset.a) === etat.a &&
+                     Number(row.dataset.b) === etat.b;
+      row.classList.toggle("current", active);
+    });
+
+    dessinerChronogramme();
+  }
+
+  function enregistrer() {
+    historique.push({ a: etat.a, b: etat.b, l: lampeAllumee() ? 1 : 0 });
+    if (historique.length > 10) historique.shift();
+    actualiser();
+  }
+
+  btnA.addEventListener("click", () => {
+    etat.a = 1 - etat.a;
+    enregistrer();
+  });
+
+  btnB.addEventListener("click", () => {
+    etat.b = 1 - etat.b;
+    enregistrer();
+  });
+
+  document.getElementById("reset").addEventListener("click", () => {
+    etat.a = 0;
+    etat.b = 0;
+    historique = [{ a: 0, b: 0, l: 0 }];
+    actualiser();
+  });
+
+  function dessinerChronogramme() {
+    const svg = document.getElementById("chronogramme");
+    const xDebut = 62;
+    const xFin = 760;
+    const pas = historique.length > 1
+      ? (xFin - xDebut) / (historique.length - 1)
+      : 0;
+    const lignes = [
+      { cle: "a", nom: "A", y: 35, classe: "chart-a" },
+      { cle: "b", nom: "B", y: 85, classe: "chart-b" },
+      { cle: "l", nom: "L", y: 135, classe: "chart-l" }
+    ];
+
+    let contenu = "";
+
+    lignes.forEach(ligne => {
+      contenu += `<text x="20" y="${ligne.y + 4}" class="chart-label">${ligne.nom}</text>`;
+      contenu += `<line x1="${xDebut}" y1="${ligne.y}" x2="${xFin}" y2="${ligne.y}" class="chart-axis"/>`;
+
+      const points = historique.map((item, i) => {
+        const x = historique.length === 1 ? xDebut + 20 : xDebut + i * pas;
+        const y = item[ligne.cle] ? ligne.y - 12 : ligne.y + 12;
+        return { x, y };
+      });
+
+      let d = `M ${points[0].x} ${points[0].y}`;
+      for (let i = 1; i < points.length; i++) {
+        d += ` H ${points[i].x} V ${points[i].y}`;
+      }
+      const dernier = points[points.length - 1];
+      d += ` H ${Math.min(xFin, dernier.x + (historique.length === 1 ? 30 : 0))}`;
+
+      contenu += `<path d="${d}" class="chart-line ${ligne.classe}"/>`;
+    });
+
+    historique.forEach((item, i) => {
+      const x = historique.length === 1 ? xDebut + 20 : xDebut + i * pas;
+      contenu += `<text x="${x}" y="165" class="chart-tick">${i + 1}</text>`;
+    });
+
+    svg.innerHTML = contenu;
+  }
+
+  actualiser();
+</script>
+</body>
+</html>
